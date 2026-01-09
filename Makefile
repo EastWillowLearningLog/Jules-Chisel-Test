@@ -30,7 +30,7 @@ $(VERILOG_FILE): src/main/scala/*.scala
 # 2. Synthesis (Yosys)
 synth: $(BUILD_DIR)/$(PROJECT).json
 $(BUILD_DIR)/$(PROJECT).json: $(VERILOG_FILE)
-	$(YOSYS) -p "synth_xilinx -flatten -abc9 -top $(TOP_MODULE) -json $@" $<
+	$(YOSYS) -p "synth_xilinx -flatten -abc9 -top $(TOP_MODULE); write_json $@" $<
 
 # 3. Place and Route (Nextpnr)
 # Note: --chipdb argument is essential if not in default location
