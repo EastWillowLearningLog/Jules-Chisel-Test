@@ -16,7 +16,8 @@ BITSTREAM = $(BUILD_DIR)/$(PROJECT).bit
 
 # Part configuration
 PART = xc7a35t
-CHIPDB_DIR ?= /usr/share/nextpnr/xilinx-chipdb # Default path, might be overridden in CI
+# Default path, might be overridden in CI
+CHIPDB_DIR ?= /usr/share/nextpnr/xilinx-chipdb
 
 .PHONY: all clean verilog synth pnr bitstream
 
