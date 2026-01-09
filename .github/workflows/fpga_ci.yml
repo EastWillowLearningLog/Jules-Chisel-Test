@@ -41,11 +41,11 @@ jobs:
         create-args: >
           yosys
           nextpnr-xilinx
-          prjxray
+          prjxray-tools
         condarc: |
           channels:
-            - conda-forge
             - litex-hub
+            - conda-forge
 
     - name: Cache PrjXray DB
       id: cache-prjxray
