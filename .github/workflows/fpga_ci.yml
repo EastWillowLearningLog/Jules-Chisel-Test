@@ -94,6 +94,11 @@ jobs:
 
     - name: Synthesis and Bitstream Generation
       run: |
+        # Debug: Check tool presence
+        echo "Checking for nextpnr-xilinx..."
+        which nextpnr-xilinx || echo "nextpnr-xilinx not found in PATH"
+        ls -l $(dirname $(which yosys))
+
         # Export environment variables for Makefile
         export CHIPDB_DIR=${{ env.CHIPDB_PATH }}
         export XRAY_DATABASE_DIR=${{ env.PRJXRAY_DB_DIR }}
