@@ -51,21 +51,46 @@ jobs:
         # Create cache directory if not exists
         mkdir -p chipdb
 
-        # Check if ChipDB exists, download if not (cache miss)
+        # Check if ChipDB exists
         if [ ! -f chipdb/xc7a35t.bin ]; then
-          echo "Downloading xc7a35t.bin..."
-          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2024-01-01/xc7a35t.bin -O chipdb/xc7a35t.bin
+          echo "ChipDB not found in cache. Preparing to generate..."
+
+          # Clone prjxray-db if not present (needed for generation)
+          if [ ! -d chipdb/prjxray-db ]; then
+             git clone --depth=1 https://github.com/f4pga/prjxray-db.git chipdb/prjxray-db
+          fi
         fi
 
         # Ensure generated directory is writable by container user
         chmod -R 777 generated
 
-        # Run make bitstream inside the container
-        # We mount the chipdb directory to /opt/chipdb and override the CHIPDB_DIR variable
+        # Run inside container:
+        # 1. Generate ChipDB if missing using prjxray-import.py found in the container.
+        # 2. Run make bitstream
 
         docker run --rm \
           -v ${{ github.workspace }}:/workspace \
           -v ${{ github.workspace }}/chipdb:/opt/chipdb \
           -w /workspace \
           ghcr.io/meriac/openxc7-litex:latest \
-          bash -l -c "make bitstream CHIPDB_DIR=/opt/chipdb"
+          bash -l -c "
+            if [ ! -f /opt/chipdb/xc7a35t.bin ]; then
+                echo 'Generating ChipDB (xc7a35t.bin)...'
+                # Find the import script
+                IMPORT_SCRIPT=\$(find / -name prjxray-import.py 2>/dev/null | head -n 1)
+                if [ -z \"\$IMPORT_SCRIPT\" ]; then
+                    echo 'Error: prjxray-import.py not found in container'
+                    exit 1
+                fi
+                echo \"Found import script at: \$IMPORT_SCRIPT\"
+
+                # Generate
+                python3 \"\$IMPORT_SCRIPT\" --output /opt/chipdb/xc7a35t.bin --part xc7a35t --db-root /opt/chipdb/prjxray-db
+            fi
+
+            # Export XRAY_DATABASE_DIR for the Makefile tools (xc7frames2bit)
+            export XRAY_DATABASE_DIR=/opt/chipdb/prjxray-db
+
+            # Run Make
+            make bitstream CHIPDB_DIR=/opt/chipdb
+          "
