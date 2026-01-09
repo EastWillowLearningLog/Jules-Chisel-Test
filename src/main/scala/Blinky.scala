@@ -36,8 +36,7 @@ object BlinkyMain extends App {
   (new ChiselStage).emitVerilog(
     new Blinky(100000000),
     Array(
-      "--target-dir", "generated",
-      "--module-name", "Blinky" // Ensures the top module is named Blinky
+      "--target-dir", "generated"
     )
   )
 }
