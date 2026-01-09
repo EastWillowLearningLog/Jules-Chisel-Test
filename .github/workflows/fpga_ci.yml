@@ -62,4 +62,4 @@ jobs:
           -v ${{ github.workspace }}/chipdb:/root/.nextpnr \
           -w /workspace \
           ghcr.io/meriac/openxc7-litex:latest \
-          bash -c "make bitstream"
+          bash -l -c "make bitstream"
