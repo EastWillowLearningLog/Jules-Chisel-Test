@@ -34,11 +34,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install sbt
 
-    - name: Setup OSS CAD Suite
-      uses: YosysHQ/setup-oss-cad-suite@v3
+    - name: Setup Conda Environment (Micromamba)
+      uses: mamba-org/setup-micromamba@v1
       with:
-        python-override: true # Often needed for nextpnr python api
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        environment-name: fpga
+        create-args: >
+          yosys
+          nextpnr-xilinx
+          prjxray
+        condarc: |
+          channels:
+            - conda-forge
+            - litex-hub
 
     - name: Cache PrjXray DB
       id: cache-prjxray
@@ -93,12 +100,8 @@ jobs:
       run: sbt "runMain blinky.BlinkyMain"
 
     - name: Synthesis and Bitstream Generation
+      shell: bash -l {0}
       run: |
-        # Debug: Check tool presence
-        echo "Checking for nextpnr-xilinx..."
-        which nextpnr-xilinx || echo "nextpnr-xilinx not found in PATH"
-        ls -l $(dirname $(which yosys))
-
         # Export environment variables for Makefile
         export CHIPDB_DIR=${{ env.CHIPDB_PATH }}
         export XRAY_DATABASE_DIR=${{ env.PRJXRAY_DB_DIR }}
