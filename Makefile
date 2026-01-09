@@ -15,7 +15,8 @@ XDC_FILE = constraints/$(PROJECT).xdc
 BITSTREAM = $(BUILD_DIR)/$(PROJECT).bit
 
 # Part configuration
-PART = xc7a35t
+DEVICE = xc7a35t
+PART = xc7a35tcsg324-1
 # Default path, might be overridden in CI
 CHIPDB_DIR ?= /usr/share/nextpnr/xilinx-chipdb
 
@@ -37,7 +38,7 @@ $(BUILD_DIR)/$(PROJECT).json: $(VERILOG_FILE)
 # Note: --chipdb argument is essential if not in default location
 pnr: $(BUILD_DIR)/$(PROJECT).fasm
 $(BUILD_DIR)/$(PROJECT).fasm: $(BUILD_DIR)/$(PROJECT).json $(XDC_FILE)
-	$(NEXTPNR) --chipdb $(CHIPDB_DIR)/$(PART).bin --part $(PART) --json $< --xdc $(XDC_FILE) --write $(BUILD_DIR)/$(PROJECT)_routed.json --fasm $@
+	$(NEXTPNR) --chipdb $(CHIPDB_DIR)/$(DEVICE).bin --json $< --xdc $(XDC_FILE) --write $(BUILD_DIR)/$(PROJECT)_routed.json --fasm $@
 
 # 4. Bitstream Generation (fasm2frames -> xc7frames2bit)
 # Convert FASM to Frames
