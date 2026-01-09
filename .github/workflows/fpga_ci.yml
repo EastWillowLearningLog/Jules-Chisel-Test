@@ -51,6 +51,9 @@ jobs:
         # Create cache directory if not exists
         mkdir -p chipdb
 
+        # Ensure generated directory is writable by container user
+        chmod -R 777 generated
+
         # Run make bitstream inside the container
         # We mount the current directory to /workspace
         # We mount the local chipdb dir to /root/.nextpnr which is a common user cache location
