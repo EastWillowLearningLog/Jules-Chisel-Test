@@ -51,18 +51,21 @@ jobs:
         # Create cache directory if not exists
         mkdir -p chipdb
 
+        # Check if ChipDB exists, download if not (cache miss)
+        if [ ! -f chipdb/xc7a35t.bin ]; then
+          echo "Downloading xc7a35t.bin..."
+          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2024-01-01/xc7a35t.bin -O chipdb/xc7a35t.bin
+        fi
+
         # Ensure generated directory is writable by container user
         chmod -R 777 generated
 
         # Run make bitstream inside the container
-        # We mount the current directory to /workspace
-        # We mount the local chipdb dir to /root/.nextpnr which is a common user cache location
-        # NOTE: The container likely has tools in PATH.
-        # We use 'make bitstream' which runs yosys, nextpnr, xc7frames2bit.
+        # We mount the chipdb directory to /opt/chipdb and override the CHIPDB_DIR variable
 
         docker run --rm \
           -v ${{ github.workspace }}:/workspace \
-          -v ${{ github.workspace }}/chipdb:/root/.nextpnr \
+          -v ${{ github.workspace }}/chipdb:/opt/chipdb \
           -w /workspace \
           ghcr.io/meriac/openxc7-litex:latest \
-          bash -l -c "make bitstream"
+          bash -l -c "make bitstream CHIPDB_DIR=/opt/chipdb"
