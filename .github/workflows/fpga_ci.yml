@@ -1,0 +1,93 @@
+name: FPGA CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Phase 1: Scala Chisel -> Verilog
+    - name: Set up Java 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'sbt'
+
+    - name: Install sbt and Verilator
+      run: |
+        echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+        echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
+        curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+        sudo apt-get update
+        sudo apt-get install -y sbt verilator
+
+    - name: Run Chisel Tests (Verilator Simulation)
+      run: sbt test
+
+    - name: Generate Verilog
+      run: sbt "runMain blinky.BlinkyMain"
+
+    # Phase 2: Verilog -> Bitstream (using OpenXC7 Container)
+    # Reference: https://github.com/meriac/OpenXC7-LiteX
+
+    - name: Cache Xilinx ChipDB
+      id: cache-chipdb
+      uses: actions/cache@v3
+      with:
+        path: chipdb
+        key: xilinx-chipdb-xc7a35t-container
+
+    - name: Generate Bitstream in OpenXC7 Container
+      run: |
+        # Create cache directory if not exists
+        mkdir -p chipdb
+
+        # Check if ChipDB exists
+        if [ ! -f chipdb/xc7a35t.bin ]; then
+          echo "ChipDB not found in cache. Preparing to generate..."
+
+          # Clone prjxray-db if not present (needed for generation)
+          if [ ! -d chipdb/prjxray-db ]; then
+             git clone --depth=1 https://github.com/f4pga/prjxray-db.git chipdb/prjxray-db
+          fi
+        fi
+
+        # Ensure generated directory is writable by container user
+        chmod -R 777 generated
+
+        # Download prjxray-import.py if needed (for generation)
+        if [ ! -f chipdb/xc7a35t.bin ]; then
+           wget -q https://raw.githubusercontent.com/gatecat/nextpnr-xilinx/master/xilinx/python/prjxray-import.py -O chipdb/prjxray-import.py
+        fi
+
+        # Run inside container:
+        # 1. Generate ChipDB if missing using downloaded prjxray-import.py.
+        # 2. Run make bitstream
+
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -v ${{ github.workspace }}/chipdb:/opt/chipdb \
+          -w /workspace \
+          ghcr.io/meriac/openxc7-litex:latest \
+          bash -l -c "
+            if [ ! -f /opt/chipdb/xc7a35t.bin ]; then
+                echo 'Generating ChipDB (xc7a35t.bin)...'
+                # Use downloaded script mapped to /opt/chipdb/prjxray-import.py
+                python3 /opt/chipdb/prjxray-import.py --output /opt/chipdb/xc7a35t.bin --part xc7a35t --db-root /opt/chipdb/prjxray-db
+            fi
+
+            # Export XRAY_DATABASE_DIR for the Makefile tools (xc7frames2bit)
+            export XRAY_DATABASE_DIR=/opt/chipdb/prjxray-db
+
+            # Run Make
+            make bitstream CHIPDB_DIR=/opt/chipdb
+          "
