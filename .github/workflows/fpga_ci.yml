@@ -64,8 +64,13 @@ jobs:
         # Ensure generated directory is writable by container user
         chmod -R 777 generated
 
+        # Download prjxray-import.py if needed (for generation)
+        if [ ! -f chipdb/xc7a35t.bin ]; then
+           wget -q https://raw.githubusercontent.com/gatecat/nextpnr-xilinx/master/xilinx/python/prjxray-import.py -O chipdb/prjxray-import.py
+        fi
+
         # Run inside container:
-        # 1. Generate ChipDB if missing using prjxray-import.py found in the container.
+        # 1. Generate ChipDB if missing using downloaded prjxray-import.py.
         # 2. Run make bitstream
 
         docker run --rm \
@@ -76,16 +81,8 @@ jobs:
           bash -l -c "
             if [ ! -f /opt/chipdb/xc7a35t.bin ]; then
                 echo 'Generating ChipDB (xc7a35t.bin)...'
-                # Find the import script
-                IMPORT_SCRIPT=\$(find / -name prjxray-import.py 2>/dev/null | head -n 1)
-                if [ -z \"\$IMPORT_SCRIPT\" ]; then
-                    echo 'Error: prjxray-import.py not found in container'
-                    exit 1
-                fi
-                echo \"Found import script at: \$IMPORT_SCRIPT\"
-
-                # Generate
-                python3 \"\$IMPORT_SCRIPT\" --output /opt/chipdb/xc7a35t.bin --part xc7a35t --db-root /opt/chipdb/prjxray-db
+                # Use downloaded script mapped to /opt/chipdb/prjxray-import.py
+                python3 /opt/chipdb/prjxray-import.py --output /opt/chipdb/xc7a35t.bin --part xc7a35t --db-root /opt/chipdb/prjxray-db
             fi
 
             # Export XRAY_DATABASE_DIR for the Makefile tools (xc7frames2bit)
